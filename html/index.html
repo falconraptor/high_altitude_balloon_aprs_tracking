@@ -1,0 +1,219 @@
+~~extends html/base.html~~
+<~~header~~>
+</~~header~~>
+<~~content~~>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-md-5 col-12 border border-dark">
+                <h5 class="text-center">Instrumentation</h5>
+                <div class="row">
+                    <div class="col-2">
+                        <h6>Altitude</h6>
+                        <span id="altitudeag">0</span> FT AGL
+                    </div>
+                    <div class="col-2">
+                        <h6>Altitude</h6>
+                        <span id="altitudemsl">0</span> FT MSL
+                    </div>
+                    <div class="col-2">
+                        <h6>Max Altitude</h6>
+                        <span id="altitudemax">0</span> FT MSL
+                    </div>
+                    <div class="col-2">
+                        <h6>Course</h6>
+                        <span id="course">0</span>&deg;
+                    </div>
+                    <div class="col-2">
+                        <h6>Speed</h6>
+                        <span id="speed">0</span> K
+                    </div>
+                    <div class="col-2">
+                        <h6>Rate of Climb</h6>
+                        <span id="rateofclimb">0</span> FPM
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 border border-dark">
+                <h5 class="text-center">Sensor Data</h5>
+                <div class="row">
+                    <div class="col-6">
+                        <h6>Temperature</h6>
+                        <span id="temperature">0</span>&deg; C
+                    </div>
+                    <div class="col-6">
+                        <h6>Humitity</h6>
+                        <span id="humidity">0</span>%
+                    </div>
+                    <div class="col-6">
+                        <h6>Pressure</h6>
+                        <span id="pressure">0</span> Pa
+                    </div>
+                    <div class="col-6">
+                        <h6>Battery</h6>
+                        <span id="battery">0</span> V
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 border border-dark">
+                <h5 class="text-center">Bearing To Balloon</h5>
+                <div class="row">
+                    <div class="col"><h6>Azimuth</h6></div>
+                    <div class="col"><span id="bearingtotargetazimuth">0</span>&deg;</div>
+                </div>
+                <div class="row">
+                    <div class="col"><h6>Distance</h6></div>
+                    <div class="col"><span id="bearingtotargetdistance">0</span> Miles</div>
+                </div>
+                <div class="row">
+                    <div class="col"><h6>Elevation</h6></div>
+                    <div class="col"><span id="bearingtotargetelevation">0</span>&deg;</div>
+                </div>
+                <div class="row">
+                    <div class="col"><h6>Altitude (relative to user)</h6></div>
+                    <div class="col"><span id="bearingtotargetaltitude">0</span> FT</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 border border-dark">
+                <h5 class="text-center">User Location</h5> <label>Live Location: <input type="checkbox" onchange="toggle_live(this)" checked></label>
+                <div class="row">
+                    <div class="col"><h6>Latitude</h6></div>
+                    <div class="col"><input class="form-control" oninput="calculate()" id="lat" readonly></div>
+                </div>
+                <div class="row">
+                    <div class="col"><h6>Longitude</h6></div>
+                    <div class="col"><input class="form-control" oninput="calculate()" id="long" readonly></div>
+                </div>
+                <div class="row">
+                    <div class="col"><h6>Altitude</h6></div>
+                    <div class="col"><input class="form-control" oninput="calculate()" id="altitude" readonly></div>
+                </div>
+            </div>
+            <div class="col-md-2 col-6">
+                <div class="row border border-dark">
+                    <div class="col">
+                        <h5 class="text-center">Data Link</h5>
+                        <div class="row col"><h6>Last Contact</h6></div>
+                        <div class="row col"><span id="lastcontact">0</span></div>
+                    </div>
+                </div>
+                <div class="row border border-dark">
+                    <div class="col">
+                        <h5 class="text-center">Location Data</h5>
+                        <div class="row">
+                            <div class="col">
+                                <h6>Latitude</h6>
+                                <span id="latitude">0</span>
+                            </div>
+                            <div class="col">
+                                <h6>Longitude</h6>
+                                <span id="longitude">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</~~content~~>
+<~~scripts~~>
+    <script src="/static/js/sockets.js"></script>
+    <script>
+        let socket = null;
+        let user_loc = null;
+        let balloon_loc = null;
+        let last = null;
+        $(function() {
+            socket = new Socket(location.href.replace('http', 'ws'), refresh)
+            setInterval(function() {$.ajax({data: {get: 1}, success: refresh})}, 30 * 1000);
+            // if (navigator.geolocation) navigator.geolocation.watchPosition(input_location);
+        })
+        function refresh(data) {
+            data = data.data || data
+            data = (typeof data == 'string') ? JSON.parse(data) : data
+            // $.each(data, function (key, value) {
+            //     if (key == 'timestamp') $('#' + key.toLowerCase()).text(new Date(value).toLocaleString());
+            //     else $('#' + key.toLowerCase()).text(value);
+            // });
+            $('#latitude').text(data.latitude)
+            $('#longitude').text(data.longitude)
+            $('#altitudemsl').text((data.altitude * 3.28084).toFixed(4))
+            let instruments = {}
+            $.each(data.comment.split(/\s/, 2)[0].split(/\//g), function (index, elem) {elem = elem.split(/=/, 2); instruments[elem[0]] = elem[1]})
+            $('#altitudemax').text(Number(instruments.MaxA).toFixed(4))
+            $('#pressure').text(Number(instruments.Pa))
+            $('#humidity').text(Number(instruments.Rh))
+            $('#temperature').text(Number(instruments.Ti).toFixed(2))
+            $('#battery').text(Number(instruments.batt).toFixed(2))
+            $('#lastcontact').text(new Date(Date.UTC(null, null, null, Number(data.raw_timestamp.substr(0, 2)) + 1, data.raw_timestamp.substr(2, 2), data.raw_timestamp.substr(4, 2))).toTimeString())
+            $('#course').text(data.course)
+            $('#speed').text(data.speed)
+            if ($('#lat').val() || $('#long').val() || $('#altitude').val()) calculate();
+            $('#rateofclimb').text(data.altitude - ((last || {}).altitude || data.altitude))
+            last = data
+        }
+        function input_location(position) {
+            $('#lat').val(position.coords.latitude);
+            $('#long').val(position.coords.longitude);
+            $('#altitude').val(position.coords.altitude * 3.28084);
+            calculate()
+        }
+        function angle_convert(to, angle) {
+            if (to == 'degrees') return 180 * angle / Math.PI;
+            else if (to == 'radians') return Math.PI * angle / 180;
+        }
+        function distance_convert(to, disance) {
+            return disance * (to == 'kilometers' ? 1.609344 : 0.621371192)
+        }
+        function calculate() {
+            show_position();
+            let loc1 = user_loc;
+            let loc2 = balloon_loc;
+            // let lng1 = angle_convert('radians', loc1.lng);
+            // let lng2 = angle_convert('radians', loc2.lng);
+            // let d_long = lng1 - lng2;
+            let lat1 = angle_convert('radians', loc1.lat);
+            let lat2 = angle_convert('radians', loc2.lat);
+            // let bearing = (angle_convert('degrees', Math.atan2(Math.sin(d_long) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(d_long))) + 360) % 360;
+            let d_long = angle_convert('radians', loc2.lng - loc1.lng);
+            if (Math.abs(d_long) > Math.PI) d_long = d_long > 0 ? -(2 * Math.PI - d_long) : 2 * Math.PI + d_long;
+            let rhumb_bearing = (angle_convert('degrees', Math.atan2(d_long, Math.log(Math.tan(lat2 / 2 + Math.PI / 4) / Math.tan(lat1 / 2 + Math.PI / 4)))) + 360) % 360;
+            $('#bearingtotargetazimuth').text(rhumb_bearing.toFixed(2));
+            // let a = Math.pow(Math.sin((lat2 - lat1) / 2), 2) + Math.cos(lat1) * Math.cos(lat2) * Math.pow(Math.sin((lng2 - lng1) / 2), 2);
+            // let distance = (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 3956).toFixed(2);
+            let d_lat = angle_convert('radians', loc2.lat - loc1.lat);
+            d_long = angle_convert('radians', loc2.lng - loc1.lng);
+            let d_phi = Math.log(Math.tan(lat2 / 2 + Math.PI / 4) / Math.tan(lat1 / 2 + Math.PI / 4));
+            let q = d_phi ? d_lat / d_phi : Math.cos(lat1);
+            if (d_long > Math.PI) d_long = 2 * Math.PI - d_long;
+            let rhumb_distance = Math.sqrt(Math.pow(d_lat, 2) + Math.pow(q, 2) * Math.pow(d_long, 2)) * 3956;
+            $('#bearingtotargetdistance').text(rhumb_distance.toFixed(2));
+            let altitude = Number($('#altitudemsl').text()) - Number($('#altitude').val());
+            $('#bearingtotargetelevation').text(angle_convert('degrees', Math.atan(altitude / (rhumb_distance * 5280))));
+            $('#bearingtotargetaltitude, #altitudeag').text(altitude.toFixed(4));
+        }
+        function show_position() {
+            function compare(loc1, loc2) {
+                if (!loc1) loc1 = {};
+                if (!loc2) loc2 = {};
+                return loc1.lat != loc2.lat || loc1.lng != loc2.lng
+            }
+            let user_pos = {lat: Number($('#lat').val()), lng: Number($('#long').val())};
+            let balloon_pos = {lat: Number($('#latitude').text()), lng: Number($('#longitude').text())};
+            if (compare(user_pos, user_loc) || compare(balloon_pos, balloon_loc)) {
+                user_loc = user_pos;
+                balloon_loc = balloon_pos;
+            }
+        }
+        function toggle_live(elem) {
+            if (navigator.geolocation) {
+                if ($(elem).prop('checked')) {
+                    navigator.geolocation.watchPosition(input_location);
+                    $('#lat, #long, #altitude').attr('readonly', '')
+                } else {
+                    navigator.geolocation.watchPosition(function () {});
+                    $('#lat, #long, #altitude').removeAttr('readonly')
+                }
+            }
+        }
+    </script>
+</~~scripts~~>
